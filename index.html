@@ -860,12 +860,13 @@
         const percentage = Math.round((currentScore / perfectScore) * 100);
         
         let rank, msg;
-        const experimentFailed = !!failureReason;
-        if (experimentFailed) {
+        // 只有「來不及搖晃導致提早氧化 (timeout)」才是真正的操作失誤，判為 F 級。
+        // 「抗氧化力耗盡 (capacity)」代表配方容量已完整發揮到極限，屬於正常完賽，
+        // 仍依配方分數評級 (S/A/B/C)。
+        const isRealFailure = failureReason === 'timeout';
+        if (isRealFailure) {
           rank = 'F';
-          msg = failureReason === 'timeout'
-            ? '來不及即時搖晃，溶液瞬間氧化，實驗失敗了！'
-            : '抗氧化力已耗盡，溶液終究氧化了，實驗失敗了！';
+          msg = '來不及即時搖晃，溶液瞬間氧化，實驗失敗了！';
         } else if (percentage >= 90) { rank = 'S'; msg = '完美配方！你是抗氧化大師！'; }
         else if (percentage >= 70) { rank = 'A'; msg = '非常棒！具有強大的抗氧化力！'; }
         else if (percentage >= 50) { rank = 'B'; msg = '還不錯，但還有進步空間。'; }
