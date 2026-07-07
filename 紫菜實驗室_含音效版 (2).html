@@ -1,0 +1,1136 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>紫菜抗氧化實驗室 - 聽講專注度檢測</title>
+  
+  <!-- 載入 Tailwind CSS (排版樣式) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  
+  <!-- 載入 React (核心框架) -->
+  <script src="https://unpkg.com/react@18/umd/react.production.min.js" crossorigin></script>
+  <script src="https://unpkg.com/react-dom@18/umd/react-dom.production.min.js" crossorigin></script>
+  
+  <!-- 載入 Babel (瀏覽器即時編譯) -->
+  <script src="https://unpkg.com/@babel/standalone/babel.min.js"></script>
+
+  <style>
+    /* 淡入動畫設定 */
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .animate-fade-in { animation: fadeIn 0.5s ease-out forwards; }
+    body { margin: 0; padding: 0; background-color: #f8fafc; overflow: hidden; }
+  </style>
+</head>
+<body>
+  <!-- 遊戲畫面渲染的位置 -->
+  <div id="root"></div>
+
+  <!-- 我們的遊戲程式碼 -->
+  <script type="text/babel">
+    const { useState, useEffect, useRef } = React;
+
+    // --- 內建圖示 ---
+    const Icon = ({ children, size = 24, className = '', fill = 'none', stroke = 'currentColor', strokeWidth = 2, ...props }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke={stroke} strokeWidth={strokeWidth} strokeLinecap="round" strokeLinejoin="round" className={className} {...props}>
+        {children}
+      </svg>
+    );
+
+    const FlaskConical = (props) => <Icon {...props}><path d="M10 2v7.31L2.07 19.23A2 2 0 0 0 3.82 22h16.36a2 2 0 0 0 1.75-2.77L14 9.31V2h-4Z"/><path d="M8.5 2h7"/><path d="M6 16h12"/></Icon>;
+    const Beaker = (props) => <Icon {...props}><path d="M4.5 3h15"/><path d="M6 3v16a2 2 0 0 0 2 2h8a2 2 0 0 0 2-2V3"/><path d="M6 14h12"/></Icon>;
+    const CheckCircle2 = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><path d="m9 12 2 2 4-4"/></Icon>;
+    const RotateCcw = (props) => <Icon {...props}><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></Icon>;
+    const Info = (props) => <Icon {...props}><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></Icon>;
+    const Keyboard = (props) => <Icon {...props}><rect width="20" height="16" x="2" y="4" rx="2" ry="2"/><path d="M6 8h.01M10 8h.01M14 8h.01M18 8h.01M8 12h8M16 16h.01M12 16h.01M8 16h.01M4 16h.01M4 12h.01M20 12h.01"/></Icon>;
+    const Award = (props) => <Icon {...props}><circle cx="12" cy="8" r="7"/><polyline points="8.21 13.89 7 23 12 20 17 23 15.79 13.88"/></Icon>;
+    const Thermometer = (props) => <Icon {...props}><path d="M14 4v10.54a4 4 0 1 1-4 0V4a2 2 0 0 1 4 0Z"/></Icon>;
+    const Timer = (props) => <Icon {...props}><line x1="10" x2="14" y1="2" y2="2"/><line x1="12" x2="15" y1="14" y2="11"/><circle cx="12" cy="14" r="8"/></Icon>;
+    
+    // 火焰圖示回復成高自訂度路徑，使選項中呈現亮麗的橘色
+    const Flame = (props) => <Icon {...props}><path d="M8.5 14.5A2.5 2.5 0 0 0 11 12c0-1.38-.5-2-1-3-1.072-2.143-.224-4.054 2-6 .5 2.5 2 4.9 4 6.5 2 1.6 3 3.5 3 5.5a7 7 0 1 1-14 0c0-1.153.433-2.294 1-3a2.5 2.5 0 0 0 2.5 2.5z"/></Icon>;
+    const TestTube = (props) => <Icon {...props}><path d="M16 2v17.5c0 1.4-1.1 2.5-2.5 2.5h-3c-1.4 0-2.5-1.1-2.5-2.5V2h8Z"/></Icon>;
+    
+    // --- 自訂水滴圖示 (單一飽滿的水滴) ---
+    const SingleDrop = ({ size = 24, className = '', color = 'currentColor' }) => (
+      <svg xmlns="http://www.w3.org/2000/svg" width={size} height={size} viewBox="0 0 24 24" fill={color} stroke="none" className={className}>
+        <path d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z" />
+      </svg>
+    );
+    // 用於圖示按鈕的液體圖標
+    const DropletsIcon = (props) => <Icon {...props}><path d="M7 16.3c2.2 0 4-1.83 4-4.05 0-1.16-.57-2.26-1.71-3.19S7 2.9 7 2.9s-2.28 6.16-2.29 6.16C3.57 10 3 11.08 3 12.25c0 2.22 1.8 4.05 4 4.05z"/><path d="M12.56 6.6A10.97 10.97 0 0 1 14 8.47c1.14.93 1.71 2.03 1.71 3.19 0 2.22-1.8 4.05-4 4.05-1.07 0-2.03-.43-2.7-1.11M16 11.23c1.11.83 1.63 1.83 1.63 2.93 0 2.09-1.63 3.84-3.63 3.84-1.04 0-1.98-.44-2.61-1.12"/></Icon>;
+
+    // --- 科展報告數據與選項設定 ---
+    const QUESTIONS = [
+      {
+        id: 'seaweed',
+        title: '1. 從標本罐夾取海藻',
+        type: 'jar',
+        options: [
+          { label: '昆布', value: 'kelp', score: 10, color: '#15803d', shadow: 'shadow-green-900' },
+          { label: '裙帶菜', value: 'wakame', score: 10, color: '#22c55e', shadow: 'shadow-green-500' },
+          { label: '紫菜', value: 'porphyra', score: 30, color: '#9333ea', shadow: 'shadow-purple-700' }
+        ]
+      },
+      {
+        id: 'temp',
+        title: '2. 注入萃取純水',
+        type: 'flask',
+        options: [
+          { label: '冰水 (4°C)', value: 'cold', score: 5, color: '#60a5fa', icon: <Thermometer size={20} className="text-blue-200"/> },
+          { label: '常溫水 (24°C)', value: 'room', score: 20, color: '#3b82f6', icon: <DropletsIcon size={20} className="text-blue-100"/> },
+          { label: '熱水 (90°C)', value: 'hot', score: 5, color: '#ef4444', icon: <Flame size={20} className="text-red-200"/> }
+        ]
+      },
+      {
+        id: 'water',
+        title: '3. 選擇水質環境',
+        type: 'bottle',
+        options: [
+          { label: '軟水', value: 'soft', score: 5, color: '#a5f3fc' },
+          { label: '硬水 (含礦物)', value: 'hard', score: 15, color: '#0891b2' }
+        ]
+      },
+      {
+        id: 'method',
+        title: '4. 設定萃取程序',
+        type: 'action',
+        options: [
+          { label: '直接下鍋煮沸', value: 'direct', score: 5, color: '#f97316', icon: <Flame size={28} className="text-orange-500" fill="#f97316"/> },
+          { label: '先靜置浸泡', value: 'soak', score: 15, color: '#ea580c', icon: <Timer size={28}/> }
+        ]
+      },
+      {
+        id: 'additive',
+        title: '5. 滴入神奇調味料',
+        type: 'dropper',
+        options: [
+          { label: '鹽巴溶液', value: 'salt', score: 5, color: '#f3f4f6' },
+          { label: '糖水溶液', value: 'sugar', score: 5, color: '#fef08a' },
+          { label: '食用醋', value: 'vinegar', score: 20, color: '#facc15' }
+        ]
+      }
+    ];
+
+    // --- 🔊 遊戲音效系統 (使用 Web Audio API 即時合成音效，無需額外音檔) ---
+    const SoundFX = {
+      ctx: null,
+      volume: 0.5, // 🔔 音效音量 (0 ~ 1)，由設定面板的滑桿即時調整
+      getCtx() {
+        if (!this.ctx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return null;
+          this.ctx = new AudioContextClass();
+        }
+        if (this.ctx.state === 'suspended') this.ctx.resume();
+        return this.ctx;
+      },
+      tone(freq, duration = 0.15, type = 'sine', startGain = 0.2, endFreq = null) {
+        try {
+          if (this.volume <= 0.001) return; // 音效音量為 0 時直接靜音，不產生任何聲音
+          const ctx = this.getCtx();
+          if (!ctx) return;
+          const osc = ctx.createOscillator();
+          const gain = ctx.createGain();
+          osc.type = type;
+          osc.frequency.setValueAtTime(freq, ctx.currentTime);
+          if (endFreq) osc.frequency.exponentialRampToValueAtTime(endFreq, ctx.currentTime + duration);
+          gain.gain.setValueAtTime(startGain * this.volume, ctx.currentTime);
+          gain.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + duration);
+          osc.connect(gain);
+          gain.connect(ctx.destination);
+          osc.start();
+          osc.stop(ctx.currentTime + duration);
+        } catch (e) { /* 部分瀏覽器可能限制音訊播放，靜默失敗即可 */ }
+      },
+      click() { this.tone(600, 0.08, 'triangle', 0.15); },       // 按鈕點擊
+      pour() { this.tone(320, 0.3, 'sine', 0.12, 200); },        // 倒入液體/器材選擇
+      drop() { this.tone(880, 0.09, 'sine', 0.15); },            // 碘液滴入警示
+      shake() { this.tone(150 + Math.random() * 120, 0.05, 'square', 0.09); }, // 搖晃試管
+      success() {                                                 // 成功還原溶液
+        this.tone(523.25, 0.12, 'sine', 0.18);
+        setTimeout(() => this.tone(783.99, 0.18, 'sine', 0.18), 100);
+      },
+      fail() { this.tone(220, 0.45, 'sawtooth', 0.2, 70); },     // 實驗失敗
+      start() {                                                   // 開始遊戲
+        this.tone(440, 0.1, 'sine', 0.15);
+        setTimeout(() => this.tone(660, 0.2, 'sine', 0.15), 90);
+      },
+      fanfare(rank) {                                             // 結算畫面依名次播放不同旋律
+        const notes = rank === 'S' ? [523.25, 659.25, 783.99, 1046.5]
+                     : rank === 'A' ? [523.25, 659.25, 783.99]
+                     : rank === 'B' ? [440, 523.25]
+                     : rank === 'F' ? [293.66, 246.94, 196.00]
+                     : [330, 261.6];
+        notes.forEach((f, i) => setTimeout(() => this.tone(f, 0.22, 'triangle', 0.18), i * 130));
+      }
+    };
+
+    function App() {
+      const [gameState, setGameState] = useState('start'); 
+      const [selections, setSelections] = useState({});
+      const [currentStep, setCurrentStep] = useState(0);
+      const [maxResistance, setMaxResistance] = useState(0); 
+      
+      // 滴定遊戲狀態
+      const [subPhase, setSubPhase] = useState('starch'); 
+      const [starchDrops, setStarchDrops] = useState(0);
+      const [dropsAdded, setDropsAdded] = useState(0);
+      const [shakePower, setShakePower] = useState(0);
+      const [solutionState, setSolutionState] = useState('clear'); 
+      const [isShaking, setIsShaking] = useState(false);
+      const [failureReason, setFailureReason] = useState(null);
+      
+      const shakeRef = useRef({ lastX: null, lastY: null, lastZ: null, lastUpdate: 0 });
+      const solutionStateRef = useRef(solutionState); 
+      const dropsAddedRef = useRef(dropsAdded); 
+
+      // 🎵 背景音樂 (將 Blue_Flame_Logic.mp3 與此 HTML 檔放在同一資料夾即可自動播放)
+      const bgmRef = useRef(null);
+      // 🏆 結算音樂 (S/A 名次播放 Success_Music.mp3，B/C 名次播放 Fail_Music.mp3，同樣放在同一資料夾即可啟動)
+      const successAudioRef = useRef(null);
+      const failAudioRef = useRef(null);
+      const [musicOn, setMusicOn] = useState(true);
+      const [musicVolume, setMusicVolume] = useState(0.35);   // 🎵 音樂音量 (背景音樂 + 結算音樂共用)
+      const [sfxVolume, setSfxVolume] = useState(0.5);        // 🔔 音效音量 (互動音效)
+      const [showAudioPanel, setShowAudioPanel] = useState(false);
+
+      useEffect(() => {
+        solutionStateRef.current = solutionState;
+      }, [solutionState]);
+
+      useEffect(() => {
+        dropsAddedRef.current = dropsAdded;
+      }, [dropsAdded]);
+
+      // 頁面載入後嘗試自動播放背景音樂；若被瀏覽器政策阻擋，
+      // 則於使用者第一次點擊/按鍵/觸控時自動補播放
+      useEffect(() => {
+        const audio = bgmRef.current;
+        if (!audio) return;
+        audio.volume = musicVolume;
+
+        const tryPlay = () => {
+          const playPromise = audio.play();
+          if (playPromise && typeof playPromise.catch === 'function') {
+            playPromise.catch(() => {
+              const resumeOnInteraction = () => {
+                audio.play().catch(() => {});
+                window.removeEventListener('pointerdown', resumeOnInteraction);
+                window.removeEventListener('keydown', resumeOnInteraction);
+                window.removeEventListener('touchstart', resumeOnInteraction);
+              };
+              window.addEventListener('pointerdown', resumeOnInteraction, { once: true });
+              window.addEventListener('keydown', resumeOnInteraction, { once: true });
+              window.addEventListener('touchstart', resumeOnInteraction, { once: true });
+            });
+          }
+        };
+        tryPlay();
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+      }, []);
+
+      // 🎚️ 音樂音量滑桿：同步套用到背景音樂與結算音樂
+      useEffect(() => {
+        if (bgmRef.current) bgmRef.current.volume = musicVolume;
+        if (successAudioRef.current) successAudioRef.current.volume = musicVolume;
+        if (failAudioRef.current) failAudioRef.current.volume = musicVolume;
+      }, [musicVolume]);
+
+      // 🎚️ 音效音量滑桿：同步套用到 SoundFX 互動音效
+      useEffect(() => {
+        SoundFX.volume = sfxVolume;
+      }, [sfxVolume]);
+
+      const toggleMusic = () => {
+        const audio = bgmRef.current;
+        if (!audio) return;
+        if (musicOn) {
+          audio.pause();
+        } else {
+          audio.play().catch(() => {});
+        }
+        setMusicOn(prev => !prev);
+      }; // eslint-disable-line no-unused-vars
+
+      const handleSelect = (questionId, option) => {
+        setSelections(prev => {
+          const nextSelections = { ...prev, [questionId]: option };
+          if (currentStep < QUESTIONS.length - 1) {
+            setCurrentStep(prevStep => prevStep + 1);
+          } else {
+            calculatePowerAndProceed(nextSelections);
+          }
+          return nextSelections;
+        });
+      };
+
+      const calculatePowerAndProceed = (finalSelections) => {
+        let totalScore = 0;
+        Object.values(finalSelections).forEach(opt => {
+          totalScore += opt.score;
+        });
+        const resistanceDrops = Math.max(5, Math.floor(totalScore / 5));
+        setMaxResistance(resistanceDrops);
+        
+        setGameState('titrate');
+        requestDeviceMotionPermission();
+      };
+
+      const requestDeviceMotionPermission = async () => {
+        if (typeof DeviceMotionEvent !== 'undefined' && typeof DeviceMotionEvent.requestPermission === 'function') {
+          try {
+            const permissionState = await DeviceMotionEvent.requestPermission();
+            if (permissionState === 'granted') {
+              window.addEventListener('devicemotion', handleMotion, false);
+            }
+          } catch (error) {
+            console.warn("Device motion permission denied", error);
+          }
+        } else {
+          window.addEventListener('devicemotion', handleMotion, false);
+        }
+      };
+
+      const handleMotion = (event) => {
+        if (subPhase === 'starch' || solutionState === 'oxidized') return;
+        const { accelerationIncludingGravity } = event;
+        if (!accelerationIncludingGravity) return;
+        const { x, y, z } = accelerationIncludingGravity;
+        const currentTime = new Date().getTime();
+        const { lastX, lastY, lastZ, lastUpdate } = shakeRef.current;
+
+        if ((currentTime - lastUpdate) > 100) {
+          const diffTime = (currentTime - lastUpdate);
+          if (lastX !== null) {
+            const speed = Math.abs(x + y + z - lastX - lastY - lastZ) / diffTime * 10000;
+            if (speed > 800) triggerShake();
+          }
+          shakeRef.current = { lastX: x, lastY: y, lastZ: z, lastUpdate: currentTime };
+        }
+      };
+
+      const triggerShake = () => {
+        if (subPhase === 'starch' || solutionState === 'oxidized') return;
+        SoundFX.shake();
+        setIsShaking(true);
+        setShakePower(prev => Math.min(prev + 22, 100));
+        setTimeout(() => setIsShaking(false), 200);
+      };
+
+      useEffect(() => {
+        if (gameState !== 'titrate' || solutionState === 'oxidized' || subPhase === 'starch') return;
+        const handleKeyDown = (e) => {
+          if (e.code === 'Space') {
+            e.preventDefault();
+            triggerShake();
+          }
+        };
+        window.addEventListener('keydown', handleKeyDown);
+        return () => window.removeEventListener('keydown', handleKeyDown);
+      }, [gameState, solutionState, subPhase]);
+
+      // 透明澱粉液滴入邏輯
+      useEffect(() => {
+        if (gameState !== 'titrate' || subPhase !== 'starch') return;
+        const interval = setInterval(() => {
+          setStarchDrops(prev => {
+            const next = prev + 1;
+            // 當滴滿 3 滴時，清除計時器，並在 1.5 秒後進入碘液階段
+            if (next >= 3) {
+              clearInterval(interval);
+              setTimeout(() => setSubPhase('iodine'), 1500); 
+            }
+            return next;
+          });
+        }, 1500); // 每一滴間隔 1.5 秒
+        return () => clearInterval(interval);
+      }, [gameState, subPhase]);
+
+      // 碘液滴定與失敗判定邏輯
+      useEffect(() => {
+        if (gameState !== 'titrate' || subPhase !== 'iodine' || solutionState === 'oxidized') return;
+        
+        const interval = setInterval(() => {
+          const current = solutionStateRef.current;
+          const currentDrops = dropsAddedRef.current;
+          
+          if (current === 'oxidized') {
+            clearInterval(interval);
+            return;
+          }
+          
+          if (current === 'blue') {
+            SoundFX.fail();
+            setSolutionState('oxidized');
+            clearInterval(interval);
+            
+            if (currentDrops <= maxResistance) {
+              setFailureReason('timeout');
+            } else {
+              setFailureReason('capacity');
+            }
+            // 無論何種失敗原因，2 秒後都會跳轉至結算畫面，並以 F 級呈現
+            setTimeout(() => setGameState('result'), 2000);
+          } else {
+            SoundFX.drop();
+            setDropsAdded(d => d + 1);
+            setShakePower(0);
+            setSolutionState('blue');
+          }
+        }, 3000); // 將碘液滴入間隔時間縮短至 3.0 秒（更具挑戰性！）
+
+        return () => clearInterval(interval);
+      }, [gameState, subPhase, maxResistance]); 
+
+      useEffect(() => {
+        if (gameState !== 'titrate' || solutionState === 'oxidized' || subPhase === 'starch') return;
+        
+        if (solutionState === 'blue' && shakePower >= 100) {
+          if (dropsAdded <= maxResistance) {
+            SoundFX.success();
+            setSolutionState('clear');
+            setShakePower(0);
+          } 
+        }
+        const decayInterval = setInterval(() => {
+          setShakePower(prev => Math.max(0, prev - 4));
+        }, 100);
+        return () => clearInterval(decayInterval);
+      }, [shakePower, solutionState, dropsAdded, maxResistance, gameState, subPhase]);
+
+      const restartGame = () => {
+        SoundFX.click();
+        if (successAudioRef.current) { successAudioRef.current.pause(); successAudioRef.current.currentTime = 0; }
+        if (failAudioRef.current) { failAudioRef.current.pause(); failAudioRef.current.currentTime = 0; }
+        if (musicOn && bgmRef.current) { bgmRef.current.play().catch(() => {}); }
+        setGameState('start');
+        setSelections({});
+        setCurrentStep(0);
+        setDropsAdded(0);
+        setShakePower(0);
+        setSolutionState('clear');
+        setSubPhase('starch');
+        setStarchDrops(0);
+        setFailureReason(null);
+      };
+
+      const getExtractedColor = () => {
+        const seaweed = selections.seaweed?.value;
+        const temp = selections.temp?.value;
+        if (!seaweed || !temp) return 'rgba(191, 219, 254, 0.5)';
+
+        if (seaweed === 'porphyra') {
+          return temp === 'hot' ? '#9a3412' : '#ec4899'; 
+        } else if (seaweed === 'kelp') {
+          return '#854d0e'; 
+        } else if (seaweed === 'wakame') {
+          return '#15803d'; 
+        }
+        return 'rgba(191, 219, 254, 0.5)';
+      };
+
+      const getLiquidColor = () => {
+        if (solutionState === 'oxidized') return '#0f172a'; // 藍黑 (碘與澱粉錯合物)
+        if (solutionState === 'blue') return '#1e40af'; // 搖晃未完全，處於藍紫色
+        return getExtractedColor(); // 原始物理顏色
+      };
+
+      // --- 畫面組件 ---
+      
+      const StartScreen = () => (
+        <div className="flex flex-col items-center justify-center h-full w-full text-center p-6 space-y-6 animate-fade-in bg-slate-50">
+          <div className="w-32 h-32 md:w-48 md:h-48 bg-purple-100 rounded-full flex items-center justify-center shadow-[0_0_40px_rgba(168,85,247,0.4)]">
+            <FlaskConical className="text-purple-600 w-16 h-16 md:w-24 md:h-24" />
+          </div>
+          <h1 className="text-4xl md:text-6xl font-black text-gray-800 tracking-tight leading-tight">
+            紫菜不老藥<br/><span className="text-purple-600 text-3xl md:text-5xl">聽講專注度檢測</span>
+          </h1>
+          <p className="text-gray-600 text-lg md:text-xl max-w-2xl mx-auto">
+            剛才認真聽完台上的科展報告了嗎？<br/>
+            進入模擬實驗室，親自動手操作實驗器材，調配出抗氧化溶液吧！
+          </p>
+          <button 
+            onClick={() => { SoundFX.start(); setGameState('prepare'); }}
+            className="mt-8 px-10 py-5 bg-gradient-to-r from-purple-500 to-indigo-600 text-white rounded-full font-bold text-xl md:text-2xl shadow-xl hover:scale-105 transition-transform active:scale-95"
+          >
+            穿上實驗衣，開始實驗
+          </button>
+        </div>
+      );
+
+      const PrepareScreen = () => {
+        const currentQ = QUESTIONS[currentStep];
+        const [animatingOpt, setAnimatingOpt] = useState(null);
+
+        const onToolClick = (opt) => {
+          if (animatingOpt) return;
+          SoundFX.pour();
+          setAnimatingOpt(opt);
+          setTimeout(() => {
+            setAnimatingOpt(null);
+            handleSelect(currentQ.id, opt);
+          }, 1200);
+        };
+
+        const hasSeaweed = !!selections.seaweed;
+        const hasWater = !!selections.temp;
+        const isCooked = currentStep >= 4; 
+        const liquidColor = isCooked ? getExtractedColor() : (hasWater ? 'rgba(191, 219, 254, 0.5)' : 'transparent');
+        const seaweedColor = selections.seaweed ? QUESTIONS[0].options.find(o => o.value === selections.seaweed.value)?.color : 'transparent';
+
+        return (
+          <div className="flex flex-col h-full w-full bg-slate-100 relative overflow-hidden font-sans">
+            
+            {/* 🪧 題目顯示面板 */}
+            <div className="absolute top-0 left-0 w-full p-4 md:p-8 z-20 flex justify-between items-center pointer-events-none">
+              <div className="bg-white/95 backdrop-blur-md px-5 py-3 rounded-2xl shadow-md border border-slate-200">
+                <h2 className="text-sm md:text-base font-bold text-gray-500">實驗步驟 {currentStep + 1} / {QUESTIONS.length}</h2>
+                <p className="text-lg md:text-2xl font-black text-indigo-900">{currentQ.title}</p>
+              </div>
+            </div>
+
+            {/* 互動動畫特效層 */}
+            {animatingOpt && (
+              <div className="absolute inset-0 z-50 pointer-events-none flex justify-center items-center">
+                {['jar', 'flask', 'bottle'].includes(currentQ.type) && (
+                  <div className="animate-[moveUpPour_1.2s_ease-in-out_forwards] absolute flex items-center justify-center">
+                    <div className="animate-[tiltPour_1.2s_ease-in-out_forwards] relative z-10">
+                      {currentQ.type === 'jar' && (
+                        <div className={`w-20 h-24 md:w-24 md:h-28 rounded-t-md rounded-b-2xl border-[6px] border-slate-300 shadow-2xl relative overflow-hidden`} style={{ backgroundColor: animatingOpt.color }}>
+                          <div className="absolute top-0 w-full h-5 bg-white/30"></div>
+                        </div>
+                      )}
+                      {currentQ.type === 'flask' && (
+                        <FlaskConical className="w-20 h-20 md:w-28 md:h-28 text-slate-200 drop-shadow-xl" strokeWidth={1.5} fill={animatingOpt.color} />
+                      )}
+                      {currentQ.type === 'bottle' && (
+                        <div className="w-16 h-28 md:w-20 md:h-32 rounded-3xl border-4 border-slate-300 shadow-xl relative overflow-hidden bg-white/50" style={{ borderBottomColor: animatingOpt.color, borderBottomWidth: '24px' }}></div>
+                      )}
+                    </div>
+                    <div className="absolute -left-[35px] md:-left-[45px] top-[10px] w-4 h-16 rounded-full animate-[pourVerticalStream_0.5s_0.4s_ease-out_forwards] opacity-0 z-0" style={{ backgroundColor: animatingOpt.color }}></div>
+                  </div>
+                )}
+                {currentQ.type === 'action' && (
+                  <div className="animate-[scaleFade_1.2s_ease-out_forwards] bg-white p-8 rounded-full shadow-2xl border-4 border-orange-200 z-50 relative">
+                    {React.cloneElement(animatingOpt.icon, { size: 48 })}
+                  </div>
+                )}
+                {currentQ.type === 'dropper' && (
+                  <div className="animate-[moveUpDrop_1.2s_ease-in-out_forwards] absolute flex flex-col items-center">
+                    <TestTube size={64} className="text-slate-600 rotate-180 drop-shadow-lg" fill={animatingOpt.color} />
+                    <div className="w-4 h-4 rounded-full absolute -bottom-4 animate-[dropVertical_0.5s_0.4s_ease-out_forwards] opacity-0" style={{ backgroundColor: animatingOpt.color }}></div>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="flex-1 flex flex-col items-center justify-end pb-[10vh] md:pb-[5vh] relative z-10 w-full overflow-hidden">
+              
+              {/* 🧪 等比例放大與調整比例後的燒杯 */}
+              <div className="relative w-72 h-96 md:w-[450px] md:h-[540px] z-10">
+                <svg viewBox="0 0 200 240" className="absolute inset-0 w-full h-full drop-shadow-xl">
+                  <defs>
+                    <clipPath id="main-beaker-clip">
+                      <path d="M 30 20 L 30 200 Q 30 220 50 220 L 150 220 Q 170 220 170 200 L 170 20 Z" />
+                    </clipPath>
+                  </defs>
+                  <g clipPath="url(#main-beaker-clip)">
+                    <rect 
+                      x="0" y={hasWater ? "80" : "240"} 
+                      width="200" height="160" 
+                      fill={liquidColor} 
+                      className="transition-all duration-1000 ease-in-out"
+                    />
+                    {hasSeaweed && (
+                      <path 
+                        d="M 30 210 Q 70 180 100 210 T 170 190 L 170 220 L 30 220 Z" 
+                        fill={seaweedColor} 
+                        className="opacity-90 animate-[wave_3s_ease-in-out_infinite]"
+                      />
+                    )}
+                    {animatingOpt && currentQ.type === 'action' && animatingOpt.value === 'direct' && (
+                      <g className="animate-[bubbles_1s_ease-in_infinite]">
+                        <circle cx="80" cy="180" r="4" fill="white" opacity="0.6" />
+                        <circle cx="120" cy="190" r="6" fill="white" opacity="0.6" />
+                        <circle cx="100" cy="160" r="5" fill="white" opacity="0.6" />
+                      </g>
+                    )}
+                  </g>
+
+                  <path 
+                    d="M 30 20 L 30 200 Q 30 220 50 220 L 150 220 Q 170 220 170 200 L 170 20" 
+                    stroke="#94a3b8" strokeWidth="8" strokeLinecap="round" fill="rgba(255,255,255,0.2)"
+                    style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+                  />
+                  <path d="M 20 20 L 180 20" stroke="#94a3b8" strokeWidth="8" strokeLinecap="round"/>
+                  <line x1="35" y1="80" x2="50" y2="80" stroke="#94a3b8" strokeWidth="4" strokeLinecap="round" opacity="0.5"/>
+                  <line x1="35" y1="140" x2="60" y2="140" stroke="#94a3b8" strokeWidth="4" strokeLinecap="round" opacity="0.5"/>
+                </svg>
+              </div>
+              
+              {/* 實驗桌台面 */}
+              <div className="w-full h-10 md:h-16 bg-slate-300 border-t-4 border-slate-400 absolute bottom-0 z-0 shadow-inner"></div>
+              
+              {/* 🧪 等比例放大後的加熱爐 */}
+              <div className="w-56 md:w-[360px] h-10 md:h-16 bg-slate-700 rounded-xl mt-1 z-10 shadow-[0_10px_20px_rgba(0,0,0,0.3)] relative flex justify-center border-t-4 border-slate-500 mb-10 md:mb-12">
+                 {(selections.method?.value === 'direct' || (animatingOpt?.value === 'direct')) && (
+                   <div className="absolute -top-8 md:-top-10 text-orange-500 animate-pulse flex gap-2">
+                     <Flame size={32} fill="#f97316" className="text-orange-500"/><Flame size={40} fill="#ea580c" className="text-orange-600"/><Flame size={32} fill="#f97316" className="text-orange-500"/>
+                   </div>
+                 )}
+              </div>
+            </div>
+
+            <div className="w-full bg-white/80 backdrop-blur-xl border-t-4 border-white/90 p-6 md:p-10 pb-12 shadow-[0_-10px_40px_rgba(0,0,0,0.1)] rounded-t-[40px] z-20 flex-shrink-0">
+              <p className="text-center text-sm md:text-base font-bold text-indigo-500 mb-6 tracking-widest uppercase">請點擊選擇實驗器材</p>
+              <div className="flex justify-center items-end flex-wrap gap-6 md:gap-12 w-full max-w-4xl mx-auto">
+                {currentQ.options.map((opt, i) => (
+                  <button
+                    key={i}
+                    onClick={() => onToolClick(opt)}
+                    disabled={!!animatingOpt}
+                    className="group relative flex flex-col items-center transition-all duration-200 active:scale-95 disabled:opacity-50"
+                  >
+                    <div className="w-24 h-28 md:w-32 md:h-36 flex items-end justify-center mb-4">
+                      {currentQ.type === 'jar' && (
+                        <div className="w-20 h-24 md:w-24 md:h-28 bg-white/60 backdrop-blur-sm rounded-t-sm rounded-b-xl border-[4px] border-white shadow-lg relative overflow-hidden group-hover:-translate-y-3 transition-transform">
+                          <div className="absolute top-0 w-full h-3 bg-slate-300 rounded-sm"></div>
+                          <div className="absolute bottom-0 w-full h-2/3" style={{ backgroundColor: opt.color }}></div>
+                        </div>
+                      )}
+                      {currentQ.type === 'flask' && (
+                        <div className="relative group-hover:-translate-y-3 transition-transform">
+                          <FlaskConical className="w-20 h-20 md:w-28 md:h-28 text-slate-400 drop-shadow-md" strokeWidth={1.5} fill={opt.color} />
+                          <div className="absolute inset-0 flex items-center justify-center">{opt.icon}</div>
+                        </div>
+                      )}
+                      {currentQ.type === 'bottle' && (
+                        <div className="w-16 h-24 md:w-20 md:h-28 bg-white rounded-t-2xl rounded-b-xl border-4 border-slate-200 shadow-lg flex items-center justify-center relative group-hover:-translate-y-3 transition-transform overflow-hidden">
+                           <div className="absolute bottom-0 w-full h-1/3" style={{ backgroundColor: opt.color }}></div>
+                           <span className="text-xs md:text-sm font-black text-slate-700 rotate-[-90deg] whitespace-nowrap z-10 opacity-70">WATER</span>
+                        </div>
+                      )}
+                      {currentQ.type === 'action' && (
+                        <div className="w-20 h-20 md:w-24 md:h-24 bg-white rounded-full border-[6px] shadow-xl flex items-center justify-center group-hover:-translate-y-3 transition-transform" style={{ borderColor: opt.color, color: opt.color }}>
+                          {React.cloneElement(opt.icon, { className: "w-10 h-10 md:w-12 md:h-12" })}
+                        </div>
+                      )}
+                      {currentQ.type === 'dropper' && (
+                        <div className="relative group-hover:-translate-y-3 transition-transform flex flex-col items-center">
+                           <div className="w-8 h-10 md:w-10 md:h-12 bg-slate-800 rounded-t-full border-b-2 border-slate-600"></div>
+                           <div className="w-12 h-20 md:w-16 md:h-24 bg-white/80 backdrop-blur rounded-b-2xl border-[3px] border-white shadow-lg overflow-hidden relative">
+                             <div className="absolute bottom-0 w-full h-1/2" style={{ backgroundColor: opt.color }}></div>
+                           </div>
+                        </div>
+                      )}
+                    </div>
+                    <span className="text-sm md:text-lg font-bold text-slate-700 bg-white/90 px-4 py-2 md:px-6 md:py-2 rounded-full shadow-md border border-slate-200 whitespace-nowrap group-hover:bg-indigo-50 group-hover:text-indigo-700 group-hover:border-indigo-200">
+                      {opt.label}
+                    </span>
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes moveUpPour {
+                0% { transform: translate(0, 0) scale(1); }
+                40% { transform: translate(50px, -25vh) scale(1.2); }
+                80% { transform: translate(50px, -25vh) scale(1.2); }
+                100% { transform: translate(0, 0) scale(0); opacity: 0; }
+              }
+              @keyframes tiltPour {
+                0% { transform: rotate(0deg); }
+                40% { transform: rotate(-100deg); }
+                80% { transform: rotate(-100deg); }
+                100% { transform: rotate(0deg); }
+              }
+              @keyframes pourVerticalStream {
+                0% { opacity: 0; transform: translateY(0) scaleY(0); transform-origin: top; }
+                10% { opacity: 1; transform: translateY(0) scaleY(1); transform-origin: top; }
+                90% { opacity: 1; transform: translateY(22vh) scaleY(1); transform-origin: bottom; }
+                100% { opacity: 0; transform: translateY(26vh) scaleY(0); transform-origin: bottom; }
+              }
+              @keyframes scaleFade {
+                0% { transform: translate(0,0) scale(1); }
+                50% { transform: translate(0, -30vh) scale(2); opacity: 1; }
+                100% { transform: translate(0, -30vh) scale(3); opacity: 0; }
+              }
+              @keyframes moveUpDrop {
+                0% { transform: translate(0, 0) scale(1); }
+                40% { transform: translate(0, -25vh) scale(1.2); }
+                80% { transform: translate(0, -25vh) scale(1.2); }
+                100% { transform: translate(0, 0) scale(0); opacity: 0; }
+              }
+              @keyframes dropVertical {
+                0% { opacity: 0; transform: translateY(0) scale(1); }
+                10% { opacity: 1; transform: translateY(0) scale(1); }
+                90% { opacity: 1; transform: translateY(22vh) scale(1); }
+                100% { opacity: 0; transform: translateY(26vh) scale(0); }
+              }
+              @keyframes dropSingle {
+                0% { transform: translateY(-20px) scale(1); opacity: 0; }
+                10% { transform: translateY(0px) scale(1); opacity: 1; }
+                70% { transform: translateY(120px) scale(0.8); opacity: 1; }
+                100% { transform: translateY(180px) scale(0); opacity: 0; }
+              }
+              .animate-dropSingle { animation: dropSingle 1.2s cubic-bezier(0.5, 0, 1, 1) forwards; }
+              @keyframes wave {
+                0% { d: path("M 30 210 Q 70 180 100 210 T 170 190 L 170 220 L 30 220 Z"); }
+                50% { d: path("M 30 190 Q 70 220 100 190 T 170 210 L 170 220 L 30 220 Z"); }
+                100% { d: path("M 30 210 Q 70 180 100 210 T 170 190 L 170 220 L 30 220 Z"); }
+              }
+              @keyframes bubbles {
+                0% { transform: translateY(0) scale(1); opacity: 0; }
+                50% { opacity: 0.6; }
+                100% { transform: translateY(-40px) scale(1.5); opacity: 0; }
+              }
+            `}} />
+          </div>
+        );
+      };
+
+      const TitrateScreen = () => {
+        return (
+          <div className="flex flex-col h-full w-full p-6 md:p-10 relative overflow-hidden bg-slate-50">
+            
+            {/* 反應結束提示 */}
+            {solutionState === 'oxidized' && (
+              <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/80 backdrop-blur-sm animate-fade-in pointer-events-auto">
+                <div className="bg-white p-8 md:p-14 rounded-3xl shadow-2xl flex flex-col items-center max-w-md md:max-w-xl text-center transform scale-105 border-4 border-red-500">
+                   {failureReason === 'timeout' ? (
+                     <>
+                       <h2 className="text-3xl md:text-5xl font-black text-red-600 mb-4">實驗失敗！</h2>
+                       <p className="text-lg md:text-2xl font-bold text-slate-700">未及時搖晃，溶液已變成藍黑色。</p>
+                       <p className="text-sm md:text-base text-slate-400 mt-6 animate-pulse">實驗準備結算...</p>
+                     </>
+                   ) : (
+                     <>
+                       <h2 className="text-3xl md:text-5xl font-black text-red-600 mb-4">抗氧化力耗盡！</h2>
+                       <p className="text-lg md:text-2xl font-bold text-slate-700">已達配方極限，溶液變成藍黑色。</p>
+                       <p className="text-sm md:text-base text-slate-400 mt-6 animate-pulse">實驗準備結算...</p>
+                     </>
+                   )}
+                </div>
+              </div>
+            )}
+
+            {/* 🪧 頂部數據看板 */}
+            <div className="w-full max-w-4xl mx-auto flex justify-between items-center z-10 bg-white/80 backdrop-blur p-4 rounded-2xl shadow-sm mb-4 md:mb-8">
+              <div>
+                <div className="text-sm md:text-base text-gray-500 font-bold mb-1">目前承受滴數</div>
+                <div className="text-2xl md:text-4xl font-black text-indigo-700">{dropsAdded} <span className="text-sm md:text-lg text-gray-500">滴碘液</span></div>
+              </div>
+              <div className="text-right">
+                <div className="text-sm md:text-base text-gray-500 font-bold mb-1">你的配方極限</div>
+                <div className="text-lg md:text-2xl font-bold text-gray-800">??? 滴</div>
+              </div>
+            </div>
+
+            <div className="flex-1 flex flex-col items-center justify-center relative w-full pt-8 md:pt-12">
+              
+              {/* 🧪 精準縮小、絕不超出版面、契合比例 (200:240) 的滴定試管與水滴區域 */}
+              <div className={`relative w-48 h-[240px] md:w-60 md:h-[300px] transition-transform duration-100 ${isShaking ? 'rotate-6 scale-105' : 'rotate-0'}`}>
+                
+                {/* 試管上方的文字提示 */}
+                {subPhase === 'starch' && (
+                  <div className="absolute -top-12 md:-top-16 left-1/2 -translate-x-1/2 z-30 animate-pulse whitespace-nowrap">
+                    <div className="bg-white/90 backdrop-blur-sm px-5 py-2 md:px-6 md:py-3 rounded-full shadow-md text-indigo-600 font-bold text-sm md:text-lg border border-indigo-100">
+                      💧 滴入透明澱粉液...
+                    </div>
+                  </div>
+                )}
+
+                {/* 單一透明澱粉指示液落下動畫 (精準配合新尺寸) */}
+                {subPhase === 'starch' && starchDrops > 0 && (
+                  <div key={`starch-${starchDrops}`} className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                    <div className="animate-dropSingle flex flex-col items-center">
+                       <SingleDrop size={24} color="rgba(224,231,255,0.9)" className="drop-shadow-md" />
+                    </div>
+                  </div>
+                )}
+
+                {/* 單一深咖啡色碘液落下動畫 (精準配合新尺寸，播完即止，不殘留) */}
+                {subPhase === 'iodine' && solutionState === 'blue' && (
+                  <div key={`iodine-${dropsAdded}`} className="absolute -top-4 left-1/2 -translate-x-1/2 z-20 pointer-events-none">
+                    <div className="animate-dropSingle flex flex-col items-center">
+                       <SingleDrop size={28} color="#451a03" className="drop-shadow-xl" />
+                    </div>
+                  </div>
+                )}
+
+                <svg viewBox="0 0 200 240" fill="none" className="absolute inset-0 w-full h-full drop-shadow-2xl">
+                  <defs>
+                    <clipPath id="tube-clip">
+                      <path d="M 74 25 L 74 210 Q 74 216 80 216 L 120 216 Q 126 216 126 210 L 126 25 Z" />
+                    </clipPath>
+                  </defs>
+                  <g clipPath="url(#tube-clip)">
+                    <rect 
+                      x="50" y="60" width="100" height="170" 
+                      fill={getLiquidColor()} 
+                      className="transition-colors duration-500 opacity-95"
+                      style={{ transform: `translateY(${isShaking ? Math.sin(Date.now()) * 6 : 0}px)`, transformOrigin: 'bottom center' }}
+                    />
+                    <ellipse 
+                      cx="100" cy="60" rx="26" ry="6" fill="rgba(255,255,255,0.25)"
+                      style={{ transform: `translateY(${isShaking ? Math.sin(Date.now()) * 6 : 0}px)` }}
+                    />
+                  </g>
+                  <path 
+                    d="M 70 20 L 70 210 Q 70 220 80 220 L 120 220 Q 130 220 130 210 L 130 20" 
+                    stroke="#cbd5e1" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="rgba(255,255,255,0.15)" 
+                    style={{ backdropFilter: 'blur(4px)', WebkitBackdropFilter: 'blur(4px)' }}
+                  />
+                  <path d="M 64 20 L 136 20" stroke="#cbd5e1" strokeWidth="8" strokeLinecap="round"/>
+                  <line x1="75" y1="70" x2="85" y2="70" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                  <line x1="75" y1="110" x2="92" y2="110" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                  <line x1="75" y1="150" x2="85" y2="150" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                  <line x1="75" y1="190" x2="92" y2="190" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                </svg>
+              </div>
+            </div>
+
+            <div className="w-full max-w-2xl mx-auto pb-4 md:pb-8 text-center z-10 px-2 relative mt-8">
+              
+              {subPhase === 'starch' ? (
+                <div className="bg-indigo-50 border-2 border-indigo-200 p-6 md:p-8 rounded-2xl shadow-sm mb-4">
+                  <h3 className="text-xl md:text-3xl font-black text-indigo-700 mb-2 animate-pulse">
+                    🧪 滴入透明澱粉液 ({starchDrops}/3)
+                  </h3>
+                  <p className="text-sm md:text-lg text-indigo-500 font-bold">加入澱粉作為氧化還原指示劑...</p>
+                </div>
+              ) : (
+                <>
+                  <p className="text-gray-600 text-base md:text-lg font-bold mb-4 flex items-center justify-center gap-2">
+                    {solutionState === 'blue' ? (
+                      <span className="animate-bounce text-red-500">⚠️ 碘液氧化中！快搖晃還原！</span>
+                    ) : (
+                      <span className="text-green-600">✅ 溶液維持抗氧化狀態</span>
+                    )}
+                  </p>
+                  
+                  <div className="w-full bg-gray-200 h-8 md:h-10 rounded-full overflow-hidden mb-6 border-2 border-gray-300 shadow-inner relative">
+                    <div className="absolute inset-0 flex items-center justify-center text-xs md:text-sm font-black text-slate-800 z-10 mix-blend-overlay uppercase tracking-wider">
+                      混合震盪能量
+                    </div>
+                    <div 
+                      className="h-full bg-gradient-to-r from-yellow-400 via-orange-500 to-red-500 transition-all duration-75 ease-out"
+                      style={{ width: `${shakePower}%` }}
+                    />
+                  </div>
+
+                  <div className="flex justify-center gap-6 text-sm md:text-base text-gray-500 font-bold mb-6 bg-slate-100 py-3 rounded-xl border border-slate-200">
+                    <span className="flex items-center gap-1"><Keyboard size={18} className="text-indigo-600" />💻 狂按空白鍵</span>
+                    <span className="flex items-center gap-1"><span className="text-indigo-600 text-lg">📱</span>手機點擊/搖晃</span>
+                  </div>
+                  
+                  <button 
+                    onPointerDown={triggerShake}
+                    disabled={solutionState === 'oxidized'}
+                    className="w-full py-5 md:py-6 bg-gradient-to-r from-indigo-600 to-purple-600 text-white rounded-2xl font-black text-2xl md:text-3xl shadow-[0_8px_0_#4338ca] md:shadow-[0_12px_0_#4338ca] hover:brightness-110 active:shadow-[0_0px_0_#4338ca] active:translate-y-2 md:active:translate-y-3 transition-all select-none touch-manipulation border border-indigo-400 disabled:opacity-50"
+                  >
+                    🧪 點擊搖動試管！
+                  </button>
+                </>
+              )}
+            </div>
+            
+            <style dangerouslySetInnerHTML={{__html: `
+              @keyframes dropSingle {
+                0% { transform: translateY(-20px); opacity: 0; }
+                15% { transform: translateY(0px); opacity: 1; }
+                80% { transform: translateY(50px); opacity: 1; }
+                100% { transform: translateY(70px); opacity: 0; }
+              }
+              /* 單次水滴掉落設定：徹底解決多餘水滴與搖動時的殘留動畫 */
+              .animate-dropSingle { animation: dropSingle 0.8s cubic-bezier(0.5, 0, 1, 1) forwards; }
+            `}} />
+          </div>
+        );
+      };
+
+      const ResultScreen = () => {
+        const perfectScore = 100;
+        const currentScore = Object.values(selections).reduce((acc, opt) => acc + opt.score, 0);
+        const percentage = Math.round((currentScore / perfectScore) * 100);
+        
+        let rank, msg;
+        const experimentFailed = !!failureReason;
+        if (experimentFailed) {
+          rank = 'F';
+          msg = failureReason === 'timeout'
+            ? '來不及即時搖晃，溶液瞬間氧化，實驗失敗了！'
+            : '抗氧化力已耗盡，溶液終究氧化了，實驗失敗了！';
+        } else if (percentage >= 90) { rank = 'S'; msg = '完美配方！你是抗氧化大師！'; }
+        else if (percentage >= 70) { rank = 'A'; msg = '非常棒！具有強大的抗氧化力！'; }
+        else if (percentage >= 50) { rank = 'B'; msg = '還不錯，但還有進步空間。'; }
+        else { rank = 'C'; msg = '哎呀，這不是最佳的紫菜配方喔。'; }
+
+        useEffect(() => {
+          SoundFX.fanfare(rank);
+
+          // 🏆 依名次播放結算音樂 (S/A → 成功音樂；B/C → 失敗音樂)，播放期間先暫停背景音樂
+          const bgm = bgmRef.current;
+          const isWin = rank === 'S' || rank === 'A';
+          const resultAudio = isWin ? successAudioRef.current : failAudioRef.current;
+          const bgmWasPlaying = !!(bgm && !bgm.paused);
+          if (bgm) bgm.pause();
+
+          let handleEnded = null;
+          if (resultAudio) {
+            resultAudio.currentTime = 0;
+            resultAudio.play().catch(() => {});
+            handleEnded = () => {
+              if (musicOn && bgmWasPlaying && bgmRef.current) {
+                bgmRef.current.play().catch(() => {});
+              }
+            };
+            resultAudio.addEventListener('ended', handleEnded);
+          }
+
+          return () => {
+            if (resultAudio && handleEnded) resultAudio.removeEventListener('ended', handleEnded);
+          };
+          // eslint-disable-next-line react-hooks/exhaustive-deps
+        }, []);
+
+        const metrics = [
+          { name: '材料辨識 (種類)', val: selections.seaweed?.value === 'porphyra' ? 100 : 33, color: '#8b5cf6', comment: selections.seaweed?.value === 'porphyra' ? '🎯 完美掌握！' : '💤 漏聽關鍵' },
+          { name: '溫控敏銳 (溫度)', val: selections.temp?.value === 'room' ? 100 : 25, color: '#3b82f6', comment: selections.temp?.value === 'room' ? '🌡️ 水溫精確！' : '💤 溫度選錯囉' },
+          { name: '環境解析 (水質)', val: selections.water?.value === 'hard' ? 100 : 33, color: '#06b6d4', comment: selections.water?.value === 'hard' ? '💧 水質正確！' : '💤 水質選反了' },
+          { name: '流程規劃 (步驟)', val: selections.method?.value === 'soak' ? 100 : 33, color: '#f97316', comment: selections.method?.value === 'soak' ? '⏱️ 順序完美！' : '💤 漏看浸泡' },
+          { name: '化學敏銳 (調味)', val: selections.additive?.value === 'vinegar' ? 100 : 25, color: '#eab308', comment: selections.additive?.value === 'vinegar' ? '🧪 醋意大發！' : '💤 調味選錯囉' }
+        ];
+
+        const avgFocus = Math.round(metrics.reduce((acc, m) => acc + m.val, 0) / 5);
+        let focusTitle = '報告時大腦登出中 💤';
+        let focusBadgeColor = 'bg-red-500';
+        if (avgFocus >= 90) { focusTitle = '神級專注聽眾 🏆'; focusBadgeColor = 'bg-emerald-500'; } 
+        else if (avgFocus >= 70) { focusTitle = '超強筆記達人 🥈'; focusBadgeColor = 'bg-indigo-500'; } 
+        else if (avgFocus >= 50) { focusTitle = '恍神遊客 🥉'; focusBadgeColor = 'bg-amber-500'; }
+
+        const getCoordinates = () => {
+          const center = 100, maxRadius = 70;
+          return metrics.map((m, i) => {
+            const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+            const radius = (m.val / 100) * maxRadius;
+            return { x: center + radius * Math.cos(angle), y: center + radius * Math.sin(angle) };
+          });
+        };
+        const points = getCoordinates().map(p => `${p.x},${p.y}`).join(' ');
+
+        return (
+          <div className="flex flex-col h-full w-full p-4 md:p-8 overflow-y-auto bg-slate-50 animate-fade-in font-sans items-center">
+            <div className="w-full max-w-4xl flex flex-col gap-6">
+              
+              <div className="w-full flex flex-col md:flex-row gap-6 mt-2">
+                <div className="bg-white p-6 md:p-8 rounded-3xl shadow-sm border border-slate-200 w-full flex items-center justify-between">
+                  <div className="flex-1 text-left md:text-center">
+                    <h2 className="text-gray-500 font-bold mb-2 text-sm md:text-lg">最終抗氧化評價</h2>
+                    <div className="text-5xl md:text-7xl font-black text-transparent bg-clip-text bg-gradient-to-r from-purple-600 to-indigo-600 mb-2 md:mb-4">
+                      {rank} 級
+                    </div>
+                    <p className="text-lg md:text-2xl font-bold text-gray-800 mb-3 md:mb-4">{msg}</p>
+                    <div className="text-indigo-700 text-sm md:text-lg font-bold bg-indigo-50 border border-indigo-100 py-2 px-4 md:py-3 md:px-6 rounded-full inline-block">
+                      成功抵抗了 {dropsAdded} 滴碘液氧化
+                    </div>
+                  </div>
+
+                  <div className="w-20 h-28 md:w-32 md:h-44 relative ml-4 flex-shrink-0">
+                    <svg viewBox="0 0 200 240" fill="none" className="absolute inset-0 w-full h-full drop-shadow-md">
+                      <defs>
+                        <clipPath id="result-tube-clip">
+                          <path d="M 74 25 L 74 210 Q 74 216 80 216 L 120 216 Q 126 216 126 210 L 126 25 Z" />
+                        </clipPath>
+                      </defs>
+                      <g clipPath="url(#result-tube-clip)">
+                        <rect x="50" y="60" width="100" height="170" fill={getLiquidColor()} className="opacity-95"/>
+                        <ellipse cx="100" cy="60" rx="26" ry="6" fill="rgba(255,255,255,0.25)"/>
+                      </g>
+                      <path d="M 70 20 L 70 210 Q 70 220 80 220 L 120 220 Q 130 220 130 210 L 130 20" stroke="#cbd5e1" strokeWidth="8" strokeLinecap="round" strokeLinejoin="round" fill="rgba(255,255,255,0.2)"/>
+                      <path d="M 64 20 L 136 20" stroke="#cbd5e1" strokeWidth="8" strokeLinecap="round"/>
+                      <line x1="75" y1="70" x2="85" y2="70" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                      <line x1="75" y1="110" x2="92" y2="110" stroke="#cbd5e1" strokeWidth="3" strokeLinecap="round" opacity="0.6" />
+                    </svg>
+                    <div className="absolute -bottom-2 left-1/2 -translate-x-1/2 bg-slate-800 text-white text-[10px] md:text-xs font-bold px-2 py-1 rounded-full whitespace-nowrap z-10">
+                      最終溶液
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 w-full flex flex-col md:flex-row gap-8 items-center">
+                <div className="flex-1 w-full">
+                  <div className="flex items-center justify-between border-b border-slate-100 pb-4 mb-4">
+                    <h3 className="flex items-center text-xl font-black tracking-wide text-indigo-900">
+                      <Award className="mr-2 text-indigo-600 w-6 h-6" /> 聽課專注度指標
+                    </h3>
+                    <span className={`px-4 py-1 text-sm font-extrabold text-white rounded-full shadow-sm ${focusBadgeColor}`}>
+                      {focusTitle}
+                    </span>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {metrics.map((m, idx) => (
+                      <div key={idx} className="space-y-2">
+                        <div className="flex justify-between text-sm md:text-base font-bold">
+                          <span className="text-gray-600">{m.name}</span>
+                          <span style={{ color: m.color }} className="flex items-center gap-1">{m.comment} ({m.val}%)</span>
+                        </div>
+                        <div className="w-full bg-slate-100 h-3 rounded-full overflow-hidden shadow-inner">
+                          <div className="h-full rounded-full transition-all duration-500" style={{ width: `${m.val}%`, backgroundColor: m.color }} />
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="flex flex-col items-center justify-center border-t md:border-t-0 md:border-l border-slate-100 pt-6 md:pt-0 md:pl-8 w-full md:w-auto">
+                  <div className="w-48 h-48 md:w-64 md:h-64 relative">
+                    <svg viewBox="0 0 200 200" className="w-full h-full overflow-visible">
+                      <polygon points="100,30 166,78 141,156 59,156 33,78" fill="none" stroke="#e2e8f0" strokeWidth="1.5" />
+                      <polygon points="100,65 133,89 120,128 79,128 66,89" fill="none" stroke="#f1f5f9" strokeWidth="1" strokeDasharray="3,3" />
+                      {metrics.map((_, i) => {
+                        const angle = (Math.PI * 2 / 5) * i - Math.PI / 2;
+                        return <line key={i} x1="100" y1="100" x2={100 + 70 * Math.cos(angle)} y2={100 + 70 * Math.sin(angle)} stroke="#e2e8f0" strokeWidth="1" />;
+                      })}
+                      <polygon points={points} fill="rgba(139, 92, 246, 0.25)" stroke="#8b5cf6" strokeWidth="2.5" strokeLinejoin="round" className="transition-all duration-500 ease-out" />
+                      {getCoordinates().map((p, i) => <circle key={i} cx={p.x} cy={p.y} r="5" fill={metrics[i].color} className="transition-all duration-500 ease-out" />)}
+                    </svg>
+                  </div>
+                  <div className="mt-4 text-center">
+                    <div className="text-3xl font-black text-indigo-600">{avgFocus}%</div>
+                    <div className="text-sm text-gray-400 font-bold">聽講吸收指數</div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="bg-white rounded-3xl p-8 shadow-sm border border-slate-200 w-full">
+                <h3 className="flex items-center text-2xl font-black text-indigo-800 mb-6 border-b-2 border-indigo-50 pb-4">
+                  <Info className="mr-3" /> 科展研究正確解答
+                </h3>
+                <ul className="space-y-6">
+                  <li className="flex items-start">
+                    <CheckCircle2 className="text-green-500 mr-4 shrink-0 mt-1 w-6 h-6" />
+                    <div>
+                      <span className="font-bold text-gray-800 text-lg">種類：紫菜</span>
+                      <p className="text-gray-600 mt-1">紫菜的抗氧化力顯著優於昆布與裙帶菜，富含藻紅蛋白及多酚。</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="text-green-500 mr-4 shrink-0 mt-1 w-6 h-6" />
+                    <div>
+                      <span className="font-bold text-gray-800 text-lg">水溫：常溫水 (24°C)</span>
+                      <p className="text-gray-600 mt-1">過熱的水會破壞抗氧化活性物質，常溫水萃取效果最佳。</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="text-green-500 mr-4 shrink-0 mt-1 w-6 h-6" />
+                    <div>
+                      <span className="font-bold text-gray-800 text-lg">水質：硬水</span>
+                      <p className="text-gray-600 mt-1">硬水中的礦物質有助於紫菜有效成分析出，表現優於軟水。</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="text-green-500 mr-4 shrink-0 mt-1 w-6 h-6" />
+                    <div>
+                      <span className="font-bold text-gray-800 text-lg">烹調：先泡再煮</span>
+                      <p className="text-gray-600 mt-1">先浸泡能使細胞壁舒展，讓抗氧化物質更容易釋放。</p>
+                    </div>
+                  </li>
+                  <li className="flex items-start">
+                    <CheckCircle2 className="text-green-500 mr-4 shrink-0 mt-1 w-6 h-6" />
+                    <div>
+                      <span className="font-bold text-green-600 text-lg font-extrabold">調味：加醋 (⭐超級關鍵！)</span>
+                      <p className="text-gray-600 mt-1">酸性環境能大幅穩定活性成分，使紫菜抗氧化力提升近兩倍！推薦涼拌加醋。</p>
+                    </div>
+                  </li>
+                </ul>
+              </div>
+
+              <button 
+                onClick={restartGame}
+                className="flex items-center justify-center w-full py-6 bg-slate-800 text-white rounded-full font-bold text-2xl hover:bg-slate-700 transition-colors mb-8 shadow-xl active:scale-95"
+              >
+                <RotateCcw className="mr-3 w-6 h-6" /> 重新進行實驗
+              </button>
+            </div>
+          </div>
+        );
+      };
+
+      return (
+        <div className="fixed inset-0 w-full h-[100dvh] bg-white overflow-hidden font-sans flex flex-col">
+          {/* 🎵 背景音樂：將 Blue_Flame_Logic.mp3 與此 HTML 檔案放在同一資料夾，即可自動播放 */}
+          <audio ref={bgmRef} src="Blue_Flame_Logic.mp3" loop preload="auto" />
+          {/* 🏆 結算音樂：將 Success_Music.mp3（S/A 名次）與 Fail_Music.mp3（B/C 名次）放在同一資料夾，即可於結算畫面自動啟動 */}
+          <audio ref={successAudioRef} src="Success_Music.mp3" preload="auto" />
+          <audio ref={failAudioRef} src="Fail_Music.mp3" preload="auto" />
+
+          {/* 🔊 音量設定按鈕與面板 */}
+          <div className="fixed top-3 right-3 md:top-5 md:right-5 z-[100] flex flex-col items-end gap-2">
+            <button
+              onClick={() => setShowAudioPanel(prev => !prev)}
+              className="w-11 h-11 md:w-12 md:h-12 rounded-full bg-white/90 backdrop-blur shadow-lg border border-slate-200 flex items-center justify-center text-xl md:text-2xl active:scale-90 transition-transform"
+              title="音量設定"
+            >
+              {musicOn && musicVolume > 0 ? '🔊' : '🔇'}
+            </button>
+
+            {showAudioPanel && (
+              <div className="w-56 md:w-64 bg-white/95 backdrop-blur-md rounded-2xl shadow-xl border border-slate-200 p-4 animate-fade-in">
+                <div className="mb-4">
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs md:text-sm font-bold text-slate-600 flex items-center gap-1">🎵 背景音樂</span>
+                    <span className="text-xs font-bold text-indigo-500">{Math.round(musicVolume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round(musicVolume * 100)}
+                    onChange={(e) => {
+                      const v = Number(e.target.value) / 100;
+                      setMusicVolume(v);
+                      if (!musicOn && v > 0) setMusicOn(true);
+                      if (musicOn && v === 0) setMusicOn(false);
+                    }}
+                    className="w-full accent-indigo-600"
+                  />
+                </div>
+                <div>
+                  <div className="flex justify-between items-center mb-1">
+                    <span className="text-xs md:text-sm font-bold text-slate-600 flex items-center gap-1">🔔 音效</span>
+                    <span className="text-xs font-bold text-purple-500">{Math.round(sfxVolume * 100)}%</span>
+                  </div>
+                  <input
+                    type="range"
+                    min="0"
+                    max="100"
+                    value={Math.round(sfxVolume * 100)}
+                    onChange={(e) => setSfxVolume(Number(e.target.value) / 100)}
+                    className="w-full accent-purple-600"
+                  />
+                </div>
+              </div>
+            )}
+          </div>
+
+          {gameState === 'start' && <StartScreen />}
+          {gameState === 'prepare' && <PrepareScreen />}
+          {gameState === 'titrate' && <TitrateScreen />}
+          {gameState === 'result' && <ResultScreen />}
+        </div>
+      );
+    }
+
+    const root = ReactDOM.createRoot(document.getElementById('root'));
+    root.render(<App />);
+  </script>
+</body>
+</html>
